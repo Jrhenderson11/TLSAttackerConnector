@@ -1,3 +1,5 @@
 #!/bin/bash
 
-java -jar /tlsattackerconnector/target/TLSAttackerConnector2.0.jar $@
+java -jar /tlsattackerconnector/target/TLSAttackerConnector2.0.jar \
+    --messageDir /tlsattackerconnector/messages \
+    $@
