@@ -10,7 +10,7 @@ RUN mvn install -DskipTests=true
 # Copy and compile the connector
 WORKDIR /tlsattackerconnector
 COPY . .
+COPY ./connector /bin/connector
 RUN mvn package
 
-# Set entrypoint so this container can be used as a command
-ENTRYPOINT ["java", "-jar", "target/TLSAttackerConnector2.0.jar"]
+CMD connector --help
