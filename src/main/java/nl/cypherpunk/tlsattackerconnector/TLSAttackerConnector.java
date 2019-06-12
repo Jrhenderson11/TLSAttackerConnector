@@ -74,6 +74,8 @@ public class TLSAttackerConnector {
 	
 	@Parameter(names = {"--protocolVersion", "-pV"}, description = "TLS version to use")
 	String protocolVersionString = "TLS12";
+    ProtocolVersion protocolVersion;
+
 	@Parameter(names = {"--compressionMethod", "-cM"}, description = "CompressionMethod to use")
 	String compressionMethodString = "NULL";
 	
@@ -145,11 +147,11 @@ public class TLSAttackerConnector {
 		// TLS specific settings
 		
 		// Set TLS version
-		ProtocolVersion protocolVersion = ProtocolVersion.fromString(protocolVersionString);
+		protocolVersion = ProtocolVersion.fromString(protocolVersionString);
 		config.setHighestProtocolVersion(protocolVersion);
 		config.setDefaultSelectedProtocolVersion(protocolVersion);
 		config.setDefaultHighestClientProtocolVersion(protocolVersion);
-		
+
 		// Set default selected CipherSuite. This will be the first in the list of specified CipherSuites, which will always contain at least one element
 		config.setDefaultSelectedCipherSuite(cipherSuites.get(0));
 		
@@ -469,6 +471,12 @@ public class TLSAttackerConnector {
             
             if(connector.test) {
     			System.out.println("ClientHello: " + connector.processInput("ClientHello"));
+
+                // Force the negotiated TLS version to be the one specified
+                // through the parameters. Otherwise, a test if an
+                // implementation supports a specific version will be
+                // unreliable.
+                connector.state.getTlsContext().setSelectedProtocolVersion(connector.protocolVersion);
 
     			CipherSuite selectedCipherSuite = connector.state.getTlsContext().getSelectedCipherSuite();
     			if(selectedCipherSuite == null) {
