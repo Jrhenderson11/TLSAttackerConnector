@@ -69,6 +69,9 @@ public class TLSAttackerConnector {
 	@Parameter(names = {"--timeout", "-t"}, description = "Timeout")
 	int timeout = 100;
 
+    @Parameter(names = {"--startupDelay"}, description = "Wait this many milliseconds before startup. Useful when the system under test still needs to initialise.")
+    int startupDelay = 0;
+
 	@Parameter(names = {"--cipherSuite", "-cS"}, description = "Comma-separated list of ciphersuites to use. If none is provided this will default to TLS_RSA_WITH_AES_128_CBC_SHA256.")
 	List<String> cipherSuiteStrings = new ArrayList<>();
 
@@ -454,6 +457,9 @@ public class TLSAttackerConnector {
                 commander.usage();
                 return;
             }
+
+            // Wait for the duration of `startupDelay`
+            Thread.sleep(connector.startupDelay);
 
             // Initialise the connector after the arguments are set
             connector.initialise();
