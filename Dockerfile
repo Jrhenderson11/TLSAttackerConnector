@@ -1,5 +1,8 @@
 FROM maven:3-jdk-8 AS builder
 
+# Expose the default port
+EXPOSE 6666
+
 # Copy and ompile TLS-Attacker
 WORKDIR /tlsattackerconnector
 COPY TLS-Attacker TLS-Attacker
