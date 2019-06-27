@@ -2,7 +2,7 @@ package nl.cypherpunk.tlsattackerconnector;
 
 /**
  * Based on TransportHandler from
- * 
+ *
  * TLS-Attacker - A Modular Penetration Testing Framework for TLS
  *
  * Copyright 2014-2017 Ruhr University Bochum / Hackmanit GmbH
@@ -27,16 +27,16 @@ import java.net.SocketException;
 public class ConnectorTransportHandler extends ClientTcpNoDelayTransportHandler {
     public ConnectorTransportHandler(long timeout, String hostname, int port) throws SocketException {
         super(timeout, hostname, port);
-    }    
+    }
 
-    @Override    
+    @Override
     public byte[] fetchData() throws IOException {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        
+
         if(isClosed()) {
         	return stream.toByteArray();
-        }        
-        
+        }
+
         long minTimeMillies = System.currentTimeMillis() + timeout;
         while ((System.currentTimeMillis() < minTimeMillies) && (stream.toByteArray().length == 0)) {
         	inStream.mark(1);
@@ -46,11 +46,11 @@ public class ConnectorTransportHandler extends ClientTcpNoDelayTransportHandler 
         		closeClientConnection();
         		return stream.toByteArray();
         	}
-        	inStream.reset();  
-        	
+        	inStream.reset();
+
         	while (inStream.available() != 0) {
                 int read = inStream.read();
-                
+
 	            if(read == -1) {
 	            	System.out.println("Closing socket");
 	            	// Properly close the socket if the end of the stream was reached
@@ -58,23 +58,22 @@ public class ConnectorTransportHandler extends ClientTcpNoDelayTransportHandler 
 	            	return stream.toByteArray();
 	            }
 
-	            stream.write(read);	            	
+	            stream.write(read);
             }
         }
-        return stream.toByteArray();    	
+        return stream.toByteArray();
     }
-    
+
     @Override
     public void initialize() throws IOException {
         socket = new Socket(hostname, port);
         // Set timeout so reads won't block forever
         socket.setSoTimeout((int) timeout);
-        
+
         // Use BufferedStreams so we can mark and look ahead
         BufferedInputStream bis = new BufferedInputStream(socket.getInputStream());
         BufferedOutputStream bos = new BufferedOutputStream(socket.getOutputStream());
-        
-        setStreams(bis, bos);
-    }    
-}
 
+        setStreams(bis, bos);
+    }
+}
