@@ -89,6 +89,10 @@ public class TLSAttackerConnector {
 	private boolean help;
 	@Parameter(names = {"--test"}, description = "Run test handshake")
 	private boolean test;
+
+    @Parameter(names = {"--merge-application"}, description = "Merge successive APPLICATION messages into one message.")
+    private boolean mergeApplication = false;
+
 	@Parameter(names = {"--testCipherSuites"}, description = "Try to determine which CipherSuites are supported")
 	private boolean testCipherSuites;
 	@Parameter(names = {"--listMessages"}, description = "List all loaded messages")
@@ -278,7 +282,7 @@ public class TLSAttackerConnector {
 			return SYMBOL_CONNECTION_CLOSED;
 		}
 
-		List<String> receivedMessages = new LinkedList<>();
+		LinkedList<String> receivedMessages = new LinkedList<>();
 		ReceiveAction action = new ReceiveAction(new LinkedList<ProtocolMessage>());
 		// Need to normalize otherwise an exception is thrown about no connection existing with alias 'null'
 		action.normalize();
@@ -328,7 +332,18 @@ public class TLSAttackerConnector {
 			else {
 				outputMessage = message.toCompactString();
 			}
-			receivedMessages.add(outputMessage);
+
+            if(mergeApplication && receivedMessages.peekLast() == "APPLICATION" && outputMessage == "APPLICATION") {
+                // In this very specific case, the message should not be added
+                // to the receivedMessages array. Namely:
+                // - The user passed the --merge-application argument
+                // - The last message received was APPLICATION
+                // - The current message received is also APPLICATION
+            }
+            else {
+			    receivedMessages.add(outputMessage);
+            }
+
 		}
 
 		if(state.getTlsContext().getTransportHandler().isClosed()) {
