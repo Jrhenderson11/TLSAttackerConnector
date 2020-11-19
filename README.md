@@ -6,10 +6,12 @@ It's quick and dirty and I'll clean the code up a bit later.
 
 This tool provides a connection between TLS-Attacker and StateLearner.
 
-## Build
+## Setup
+Init + update submodules to pull custom TLS-Attacker, then follow those install instructions first.
 
+To build the connector:
 ```
-mvn clean install
+$ mvn clean install
 ```
 
 ## Example
@@ -17,7 +19,7 @@ mvn clean install
 Start OpenSSL https server
 
 ```
-openssl s_server -key server.key -cert server.pem -CAfile CA.pem -accept 4500 -www
+$ openssl s_server -key server.key -cert server.pem -CAfile CA.pem -accept 4500 -www
 ```
 
 Start TLS-Attacker Connector
