@@ -1,29 +1,37 @@
 # TLS-Attacker Connector
 
+This is a forked version of the fork https://github.com/tlsprint/TLSAttackerConnector of the original, built this time for TLS-Attacker 3.5 to develop StateInspector.
+
+It's quick and dirty and I'll clean the code up a bit later.
+
 This tool provides a connection between TLS-Attacker and StateLearner.
 
 ## Build
 
 ```
-mvn package
+mvn clean install
 ```
 
 ## Example
 
-Start OpenSSL
+Start OpenSSL https server
 
 ```
-openssl s_server -key server.key -cert server.crt -CAfile cacert.pem -accept 4433 -HTTP
+openssl s_server -key server.key -cert server.pem -CAfile CA.pem -accept 4500 -www
 ```
 
 Start TLS-Attacker Connector
 
 ```
-
+java -jar ./target/TLSAttackerConnector2.0.jar --messageDir ./messages/messages.txt --timeout 500
 ```
 
-Run StateLearner
+Connector will njow listen on default port 6666 for symbols and communicate to the TLS server on port 4500.
 
-```
 
-```
+
+## Files + things
+
+Everything is basically in one messy java file: src/main/java/nl/cypherpunk/tlsattackerconnector/TLSAttackerConnector.java
+
+This sets up some default configs, loads messages to send, starts listening and when instructed talks to the TLS server.
