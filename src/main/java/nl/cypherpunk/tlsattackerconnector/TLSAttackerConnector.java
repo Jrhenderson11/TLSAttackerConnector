@@ -56,7 +56,7 @@ import de.rub.nds.tlsattacker.core.workflow.WorkflowTraceSerializer;
 import de.rub.nds.tlsattacker.core.workflow.action.ReceiveAction;
 import de.rub.nds.tlsattacker.core.workflow.action.SendAction;
 import de.rub.nds.tlsattacker.core.workflow.action.TlsAction;
-import de.rub.nds.tlsattacker.core.workflow.action.ActivateEncryptionOnlyAction;
+import de.rub.nds.tlsattacker.core.workflow.action.ActivateEncryptionAction;
 import de.rub.nds.tlsattacker.core.workflow.action.ChangeMasterSecretAction;
 import de.rub.nds.tlsattacker.core.workflow.action.FlushSessionCacheAction;
 import de.rub.nds.tlsattacker.util.UnlimitedStrengthEnabler;
@@ -549,11 +549,10 @@ public class TLSAttackerConnector {
 
 			WorkflowTrace CCStrace = new WorkflowTrace();
 			byte[] emptyMasterSecret = new byte[0];
-			
+
 			CCStrace.addTlsAction(new SendAction(new ChangeCipherSpecMessage(config)));
 			//CCStrace.addTlsAction(new ChangeMasterSecretAction(emptyMasterSecret));
 			CCStrace.addTlsAction(new ActivateEncryptionOnlyAction());
-
 			
 			messages.put("ChangeCipherSpec", CCStrace);
 
