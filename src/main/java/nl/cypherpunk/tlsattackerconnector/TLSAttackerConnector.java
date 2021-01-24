@@ -56,7 +56,7 @@ import de.rub.nds.tlsattacker.core.workflow.WorkflowTraceSerializer;
 import de.rub.nds.tlsattacker.core.workflow.action.ReceiveAction;
 import de.rub.nds.tlsattacker.core.workflow.action.SendAction;
 import de.rub.nds.tlsattacker.core.workflow.action.TlsAction;
-import de.rub.nds.tlsattacker.core.workflow.action.ActivateEncryptionAction;
+import de.rub.nds.tlsattacker.core.workflow.action.ActivateEncryptionOnlyAction;
 import de.rub.nds.tlsattacker.core.workflow.action.ChangeMasterSecretAction;
 import de.rub.nds.tlsattacker.core.workflow.action.FlushSessionCacheAction;
 import de.rub.nds.tlsattacker.util.UnlimitedStrengthEnabler;
@@ -542,7 +542,6 @@ public class TLSAttackerConnector {
 		try (BufferedReader br = new BufferedReader(new FileReader(fileName))) {
 		
 			while ((messageName = br.readLine()) != null) {
-				
 				ProtocolMessage message = (ProtocolMessage)Class.forName("de.rub.nds.tlsattacker.core.protocol.message." + messageName + "Message").newInstance();
 				messages.put(messageName, createSendActionTrace(message));
 			}
@@ -555,7 +554,6 @@ public class TLSAttackerConnector {
 			CCStrace.addTlsAction(new ActivateEncryptionOnlyAction());
 			
 			messages.put("ChangeCipherSpec", CCStrace);
-
 			
 			// WorkflowTrace CHnoResumptionTrace = new WorkflowTrace();
 			// CHnoResumptionTrace.addTlsAction(new SendAction(new ClientHelloMessage(config)));
@@ -583,6 +581,8 @@ public class TLSAttackerConnector {
 			messages.put("ClientCertificateInvalid", createSendActionTrace(invalidCertificateMessage));
 
 			messages.put("ClientCertificateVerify", createSendActionTrace(new CertificateVerifyMessage(config)));
+
+			messages.put("ClientCertificateVerifyInvalid", createSendActionTrace(new CertificateVerifyInvalidMessage(config)));
 
 			messages.put("CertificateRequest", createSendActionTrace(new CertificateRequestMessage(config)));
 			messages.put("HelloVerifyRequest", createSendActionTrace(new HelloVerifyRequestMessage(config)));
@@ -717,7 +717,7 @@ public class TLSAttackerConnector {
 						System.out.println("RSAClientKeyExchange: " + connector.processInput("RSAClientKeyExchange"));
 					}
 
-					System.out.println("ClientCertificateVerify: " + connector.processInput("ClientCertificateVerify"));
+					System.out.println("ClientCertificateVerify: " + connector.processInput("ClientCertificateVerifyInvalid"));
 
 					System.out.println("ChangeCipherSpec: " + connector.processInput("ChangeCipherSpec"));
 					System.out.println("Finished: " + connector.processInput("Finished"));
