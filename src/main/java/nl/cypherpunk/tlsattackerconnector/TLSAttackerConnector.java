@@ -568,16 +568,16 @@ public class TLSAttackerConnector {
 			
 			CertificateMessage validCertificateMessage = new CertificateMessage(config);
 			List<CertificatePair> certificatePairsList = new LinkedList<>();
-			CertificatePair certificatePair = new CertificatePair(getCertificateChainBytes("/home/james/Documents/CTF/project/tls/openssl/server_key/self_signed.pem"));
+			CertificatePair certificatePair = new CertificatePair(getCertificateChainBytes("/home/james/Documents/CTF/project/tls/openssl/server_key/client.pem"));
 			certificatePairsList.add(certificatePair);
 			validCertificateMessage.setCertificatesList(certificatePairsList);
 			messages.put("ClientCertificateValid", createSendActionTrace(validCertificateMessage));
 
 			CertificateMessage invalidCertificateMessage = new CertificateMessage(config);
 			List<CertificatePair> invalidCertificatePairsList = new LinkedList<>();
-			CertificatePair invalidCertificatePair = new CertificatePair(getCertificateChainBytes("/home/james/Documents/CTF/project/tls/openssl/server_key/client.pem"));
+			CertificatePair invalidCertificatePair = new CertificatePair(getCertificateChainBytes("/home/james/Documents/CTF/project/tls/openssl/server_key/self_signed.pem"));
 			invalidCertificatePairsList.add(invalidCertificatePair);
-			validCertificateMessage.setCertificatesList(invalidCertificatePairsList);
+			invalidCertificateMessage.setCertificatesList(invalidCertificatePairsList);
 			messages.put("ClientCertificateInvalid", createSendActionTrace(invalidCertificateMessage));
 
 			messages.put("ClientCertificateVerify", createSendActionTrace(new CertificateVerifyMessage(config)));
@@ -717,7 +717,7 @@ public class TLSAttackerConnector {
 						System.out.println("RSAClientKeyExchange: " + connector.processInput("RSAClientKeyExchange"));
 					}
 
-					System.out.println("ClientCertificateVerify: " + connector.processInput("ClientCertificateVerifyInvalid"));
+					System.out.println("ClientCertificateVerify: " + connector.processInput("ClientCertificateVerify"));
 
 					System.out.println("ChangeCipherSpec: " + connector.processInput("ChangeCipherSpec"));
 					System.out.println("Finished: " + connector.processInput("Finished"));
