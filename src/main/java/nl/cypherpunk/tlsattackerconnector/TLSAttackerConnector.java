@@ -199,7 +199,7 @@ public class TLSAttackerConnector {
 		// remove session id too?
 		config.setDefaultClientSessionId(new byte[] {});
 		config.setDefaultServerSessionId(new byte[] {});
-		config.setAddRenegotiationInfoExtension(false);
+		config.setAddRenegotiationInfoExtension(true);
 		
 		config.setDefaultClientRSAModulus(new BigInteger("00964c7496d43ef3ca977f3fc6fc4e9955594f7865b0e85cc5a07e4c2d23427f01727631a5f4211b386dfc541550a2c928c56a21e7ac48bffb68f9ce8eba1c84b057056368989dd7a25534c18e3b796a4440cb23e56fe4bf2d306d02ba5b73d3011e2c5e2803aae655846abce9e445ac2ea3458fc27ea6d74cae3d8515d0dbb750391282ffac9ff5ce8d1f87865ae5997cc944e99e67d61599c18058998e8d405661832d30a7338d82626999b05492037f98170cf55d47f819dc313d0b48bf3079167e9c51174ca4ed814f9a5a66c6396e98edd184e002eb01324fc75dc9d806de140d3284b68fe4fe4c3ed804b352a339cce53db9ccdf194bdffce45703c7212449c12f920ec8b9e03361c5d1a12e0903d52012f2fc1d95664b0bfe31efd656a9d88a3203bc6e6e88a09f1b45b7d89cf3fbe5e6794f47cb19ab5e43ae91c992b8ebb7129b441183c5cccfeaf22437b8490653933a2a6ccfa736968b676a7ce99240db3286313df50e57049708743284795a7bc964e03fab33df28e788a2bf53684741d77c4cab8d4891b5d218ec0ff4986c9611ad815e703b2a7b08954406cb561edff65a99684984098a73016b0eb6673333095f3e3ed3b3687e9164135423be37f4a79334237cdd08247b509f39256e650e9e35760a376a63e711ad002d824c528feff23c036ca59083e9df94650089a218a91f895c83fa941661fab639c9e9", 16));
 		config.setDefaultClientRSAPrivateKey(new BigInteger("458533e098684e0805af5c66c449eeeee592b6d402d2582729a781c0d73068e2d879075a05e4525cf5b2e389c074abab6a353f5d93f94aa415d886ccca156ae2ce3db5cfa9d848e7d395c579eed4a86ccdb3a8f4f59ecf372dd11e93e8bd587a89e467e10661448d85e4816186af1b87af09fc0730e2277056a02a30ff1cc25c1f2a0ae20c8d28fbd39723eee7989038823897ff277485254bb5fc457b04a71fcd97098e19a8e4e9cc6fa02149dd08353aba5eca17cdb45af1d8ecad8d86b1fb30867bf39e5d5b64688dd38dc1402b4c96fc5a0fa6367351685e328f954f914da3e4bedb583e92e3758d140a888fcee46b7c15e31d7a8c8ee61a69dc3de91bd0a1ba5bff72623eb5d339cedc548130e571690a100e2ccea9a76cf7be428b5528f27a52d701af0df02773fa7624dd96a39f29f12905995b35cbed67e8847e69cd120de5750cb81ea9bc73910a6699e21d089d4d253695d4aeed33e23e4540ce563851a26904808e5bd319c4af0b8b7e7c2faca9c0feb152d94b95b390030f4b06781e65f16a97ab76030ad4569c4d6159116ee201ccc2ef04def8b2f60942f63a2c7bfcd452181edc117b0d10a3600b5b2abcbb25f92c787f29f044f6e6b4637fd0c2bea02bac1862a2c81be84b6fe5f685278e553f3411b2aa4c0b0761edab5408f2323297540f0f57b2a6e435cf762bd3264f5feb7a114c76bbb025886f10a9", 16));
@@ -471,11 +471,13 @@ public class TLSAttackerConnector {
 			
 		}
 
+		/*
+			To replicate past experiments we Add a renegotiation info, but alter this to ensure the Hello is sent without the info needed.
+			The server responds to this with an Alert2.40 ConnectionClosed.
+			(functionality is in RenegotiationInfoExtensionPreparator.java) 
+		*/
 		if (inputSymbol.equals("ClientHelloRSAReset")) {
-			// state.getTlsContext().setServerSessionId(new byte[] {});
-			// state.getTlsContext().setClientSessionId(new byte[] {});
-			state.getTlsContext().setRenegotiationInfo(new byte[] {});
-			//messages.put("ClientHelloRSAReset", createSendActionTrace(new ClientHelloMessage(config)));
+			state.getTlsContext().setLastClientVerifyData(new byte[] {});
 		}
 		
 
@@ -676,57 +678,39 @@ public class TLSAttackerConnector {
 			}
 
 			if(connector.test) {
-				String[] mlist = {"CertificateRequest",
-								  "HelloVerifyRequest",
-								  "DHClientKeyExchange",
-								  "DHEServerKeyExchange",
-								  "ECDHClientKeyExchange",
-								  "ECDHEServerKeyExchange",
-								  "ServerHelloDone",
-								  "Alert",
-								  "SSL2ClientHello",
-								  //"SSL2ServerHello", = Unsupported?
-								  "HelloRequest",
-								  "EncryptedExtensionMessage",
-								  //"HelloRetryRequest", =  Goes batshit crazy
-								  "ServerHello"};
+		
+				connector.processInput("RESET");
+				System.out.println("ClientHello: " + connector.processInput("ClientHelloRSAReset"));
 				
-				for (String m : mlist) {
+				// Force the negotiated TLS version to be the one specified
+				// through the parameters. Otherwise, a test if an
+				// implementation supports a specific version will be
+				// unreliable.
+				connector.state.getTlsContext().setSelectedProtocolVersion(connector.protocolVersion);
 
-					connector.processInput("RESET");
-					System.out.println("ClientHello: " + connector.processInput("ClientHelloRSAReset"));
-					//System.out.println("ClientHello: " + connector.processInput("ClientHelloRSAReset"));
-					
-					// Force the negotiated TLS version to be the one specified
-					// through the parameters. Otherwise, a test if an
-					// implementation supports a specific version will be
-					// unreliable.
-					connector.state.getTlsContext().setSelectedProtocolVersion(connector.protocolVersion);
+				System.out.println("ClientCertificateValid: " + connector.processInput("ClientCertificateValid"));
 
-					System.out.println("ClientCertificateValid: " + connector.processInput("ClientCertificateValid"));
-
-					CipherSuite selectedCipherSuite = connector.state.getTlsContext().getSelectedCipherSuite();
-					if(selectedCipherSuite == null) {
-						System.out.println("RSAClientKeyExchange: " + connector.processInput("RSAClientKeyExchange"));
-					}
-					else if(selectedCipherSuite.name().contains("ECDH")) {
-						System.out.println("ECDHClientKeyExchange: " + connector.processInput("ECDHClientKeyExchange"));
-					} else if(selectedCipherSuite.name().contains("DH")) {
-						System.out.println("DHClientKeyExchange: " + connector.processInput("DHClientKeyExchange"));
-					} else if(selectedCipherSuite.name().contains("RSA")) {
-						System.out.println("RSAClientKeyExchange: " + connector.processInput("RSAClientKeyExchange"));
-					}
-
-					System.out.println("ClientCertificateVerify: " + connector.processInput("ClientCertificateVerify"));
-
-					System.out.println("ChangeCipherSpec: " + connector.processInput("ChangeCipherSpec"));
-					System.out.println("Finished: " + connector.processInput("Finished"));
-
-					System.out.println(m + ": " +  connector.processInput(m));
-
-					System.out.println("ApplicationData: " + connector.processInput("ApplicationData"));
-					System.out.println("ApplicationDataEmpty: " + connector.processInput("ApplicationDataEmpty"));
+				CipherSuite selectedCipherSuite = connector.state.getTlsContext().getSelectedCipherSuite();
+				if(selectedCipherSuite == null) {
+					System.out.println("RSAClientKeyExchange: " + connector.processInput("RSAClientKeyExchange"));
 				}
+				else if(selectedCipherSuite.name().contains("ECDH")) {
+					System.out.println("ECDHClientKeyExchange: " + connector.processInput("ECDHClientKeyExchange"));
+				} else if(selectedCipherSuite.name().contains("DH")) {
+					System.out.println("DHClientKeyExchange: " + connector.processInput("DHClientKeyExchange"));
+				} else if(selectedCipherSuite.name().contains("RSA")) {
+					System.out.println("RSAClientKeyExchange: " + connector.processInput("RSAClientKeyExchange"));
+				}
+
+				System.out.println("ClientCertificateVerify: " + connector.processInput("ClientCertificateVerify"));
+
+				System.out.println("ChangeCipherSpec: " + connector.processInput("ChangeCipherSpec"));
+				System.out.println("Finished: " + connector.processInput("Finished"));
+
+				System.out.println("ClientHello: " + connector.processInput("ClientHelloRSAReset"));
+
+				System.out.println("ApplicationData: " + connector.processInput("ApplicationData"));
+				System.out.println("ApplicationDataEmpty: " + connector.processInput("ApplicationDataEmpty"));
 			}
 			else if(connector.testCipherSuites) {
 				for(CipherSuite cs: CipherSuite.values()) {
