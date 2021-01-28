@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Arrays;
 
 import javax.xml.bind.JAXBException;
 
@@ -115,6 +116,11 @@ public class TLSAttackerConnector {
 	@Parameter(names = {"--listMessages"}, description = "List all loaded messages")
 	private boolean listMessages;
 
+
+	private boolean isInCCSLoop = false;
+	private boolean lastReset = false;
+	List<String> loopExitStrings = new ArrayList<String>( Arrays.asList("Alert", "ChangeCipherSpec", "ApplicationData", "ApplicationDataEmpty"));
+	
 	/**
 	 * Create the TLS-Attacker connector
 	 *
@@ -259,6 +265,8 @@ public class TLSAttackerConnector {
 	public void reset() throws IOException {
 		close();
 		initialiseSession();
+		this.lastReset = true;
+		this.isInCCSLoop = false;
 	}
 
 	/**
@@ -459,6 +467,23 @@ public class TLSAttackerConnector {
 		// Set dynamic timeout
 		//config.getDefaultClientConnection().setTimeout(this.timeoutDict.get(inputSymbol));
 
+		// predicting gnutls loop
+		if (inputSymbol.equals("ChangeCipherSpec") && this.lastReset == true) {
+			this.isInCCSLoop = true;
+		}
+
+		// in CCS loop
+		if ((this.lastReset == false) && this.isInCCSLoop) {
+			
+			// Send empty or break out of loop?
+			if (this.loopExitStrings.contains(inputSymbol)) {
+				this.isInCCSLoop = false;
+			} else {
+				return "Empty";
+			}
+		}
+
+
 		//System.out.println(config.getDefaultClientConnection().getTimeout());
 		messages.put("ClientKeyExchange", createSendActionTrace(new RSAClientKeyExchangeMessage(config)));
 
@@ -485,6 +510,10 @@ public class TLSAttackerConnector {
 			sendMessage(messages.get(inputSymbol));
 		} else {
 			throw new Exception("Unknown input symbol: " + inputSymbol);
+		}
+
+		if (this.lastReset == true) {
+			this.lastReset = false;
 		}
 
 		return receiveMessages();
