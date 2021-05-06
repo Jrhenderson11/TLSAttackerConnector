@@ -20,6 +20,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.Arrays;
 
 import javax.xml.bind.JAXBException;
@@ -116,9 +118,7 @@ public class TLSAttackerConnector {
 	@Parameter(names = {"--listMessages"}, description = "List all loaded messages")
 	private boolean listMessages;
 
-
-	private boolean isInCCSLoop = false;
-	private boolean lastReset = false;
+	List<String> sentMessages = new ArrayList<String>();
 	List<String> loopExitStrings = new ArrayList<String>( Arrays.asList("Alert", "ChangeCipherSpec", "ApplicationData", "ApplicationDataEmpty"));
 	
 	/**
@@ -264,9 +264,11 @@ public class TLSAttackerConnector {
 	 */
 	public void reset() throws IOException {
 		close();
+		
 		initialiseSession();
-		this.lastReset = true;
-		this.isInCCSLoop = false;
+
+		// Clear list of sent messages
+		this.sentMessages = new ArrayList<String>();
 	}
 
 	/**
@@ -290,7 +292,6 @@ public class TLSAttackerConnector {
 
 		TlsContext context = state.getTlsContext();
 
-		//TransportHandler transporthandler = TransportHandlerFactory.createTransportHandler(config.getConnectionEnd());
 		ConnectorTransportHandler transporthandler = new ConnectorTransportHandler(config.getDefaultClientConnection().getTimeout(), config.getDefaultClientConnection().getHostname(), config.getDefaultClientConnection().getPort());
 		context.setTransportHandler(transporthandler);
 
@@ -445,6 +446,13 @@ public class TLSAttackerConnector {
 		}
 	}
 
+	private boolean intersects(List<String> l1, List<String> l2) {
+    	Set<String> s1 = new HashSet<>(l1);
+    	s1.retainAll(l2);
+    	
+    	return !s1.isEmpty();
+	}
+
 	/**
 	 * Send a message of the provided type and return the types of the response messages
 	 *
@@ -455,34 +463,45 @@ public class TLSAttackerConnector {
 	public String processInput(String inputSymbol) throws Exception {
 		// Upon receiving the special input symbol RESET, we reset the system
 		if(inputSymbol.equals(SYMBOL_RESET)) {
-			reset();
+			
+			// If connection is unable to be establsihed (SUT crash) inidcate with RESET_FAIL
+			try {
+				reset();
+			} catch (Exception e) {
+				System.out.println(e);
+				return "RESET_FAIL";
+			}
 			return "";
 		}
 
 		// Check if the socket is already closed, in which case we don't have to bother trying to send data out
-		if(state.getTlsContext().getTransportHandler().isClosed()) {
-			return SYMBOL_CONNECTION_CLOSED;
+		try{
+			if(state.getTlsContext().getTransportHandler().isClosed()) {
+				return SYMBOL_CONNECTION_CLOSED;
+			}
+		} catch (Exception e) {
+			return "RESET_FAIL";
 		}
 
 		// Set dynamic timeout
 		//config.getDefaultClientConnection().setTimeout(this.timeoutDict.get(inputSymbol));
 
-		// predicting gnutls loop
-		if (inputSymbol.equals("ChangeCipherSpec") && this.lastReset == true) {
-			this.isInCCSLoop = true;
-		}
+		// We're in "CCS"-like loop
 
-		// in CCS loop
-		if ((this.lastReset == false) && this.isInCCSLoop) {
-			
-			// Send empty or break out of loop?
-			if (this.loopExitStrings.contains(inputSymbol)) {
-				this.isInCCSLoop = false;
-			} else {
-				return "Empty";
-			}
-		}
+		// if (!this.sentMessages.contains("broken") && this.sentMessages.size() > 0) {
 
+		// 	if ((this.sentMessages.get(0).equals("ChangeCipherSpec") || this.sentMessages.get(0).equals("SSL2ClientHello")) || (this.sentMessages.get(0).equals("ClientHelloRSAReset") && (this.sentMessages.size() >1 && this.sentMessages.get(1).equals("SSL2ClientHello")))) {
+				
+		// 		// If not a symbol that we think will impact server: just return empty to avoid non-determinism
+		// 		if (!this.loopExitStrings.contains(inputSymbol)) {
+		// 			System.out.println("IN CCS LOOP");
+		// 			this.sentMessages.add(inputSymbol);
+		// 			return "Empty";
+		// 		} else {
+		// 			this.sentMessages.add("broken");
+		// 		}
+		// 	}
+		// }
 
 		//System.out.println(config.getDefaultClientConnection().getTimeout());
 		messages.put("ClientKeyExchange", createSendActionTrace(new RSAClientKeyExchangeMessage(config)));
@@ -491,9 +510,10 @@ public class TLSAttackerConnector {
 
 
 		// Process the regular input symbols
+
+		// If Reset: Reset context
 		if (inputSymbol.equals("ClientHelloRSAReset") && state.getTlsContext() != null && state.getTlsContext().getDigest().getRawBytes().length != 0) {
 			state.getTlsContext().getDigest().reset();
-			
 		}
 
 		/*
@@ -512,10 +532,7 @@ public class TLSAttackerConnector {
 			throw new Exception("Unknown input symbol: " + inputSymbol);
 		}
 
-		if (this.lastReset == true) {
-			this.lastReset = false;
-		}
-
+		this.sentMessages.add(inputSymbol);
 		return receiveMessages();
 	}
 
@@ -566,9 +583,6 @@ public class TLSAttackerConnector {
 	 */
 	public void loadMessages(String fileName) throws Exception {
 
-
-		//HashMap<String, WorkflowTrace>
-
 		String messageName = "";
 		try (BufferedReader br = new BufferedReader(new FileReader(fileName))) {
 		
@@ -589,14 +603,14 @@ public class TLSAttackerConnector {
 			// WorkflowTrace CHnoResumptionTrace = new WorkflowTrace();
 			// CHnoResumptionTrace.addTlsAction(new SendAction(new ClientHelloMessage(config)));
 			
-			// // add this to wipe knowledge of previous sessions :(
+			// // add this to wipe knowledge of previous sessions
 			// CHnoResumptionTrace.addTlsAction(new FlushSessionCacheAction());
 			// messages.put("ClientHelloRSAReset", CHnoResumptionTrace);
 
 			messages.put("CertificateStatus", createSendActionTrace(new CertificateStatusMessage(config)));
 			messages.put("SSL2ClientHello", createSendActionTrace(new SSL2ClientHelloMessage(config)));
 
-			
+			// COnfiure certs with correct certificate data
 			CertificateMessage validCertificateMessage = new CertificateMessage(config);
 			List<CertificatePair> certificatePairsList = new LinkedList<>();
 			CertificatePair certificatePair = new CertificatePair(getCertificateChainBytes("/home/james/Documents/CTF/project/tls/openssl/server_key/client.pem"));
@@ -650,7 +664,6 @@ public class TLSAttackerConnector {
 			certificateMessage.setCertificatesListBytes(list);
 			messages.put("EmptyCertificate", createSendActionTrace(certificateMessage));
 
-			
 
 		} catch (ClassNotFoundException e) {
 			System.out.println("Cannot create message: " + messageName);
@@ -717,7 +730,7 @@ public class TLSAttackerConnector {
 				// unreliable.
 				connector.state.getTlsContext().setSelectedProtocolVersion(connector.protocolVersion);
 
-				System.out.println("ClientCertificateValid: " + connector.processInput("ClientCertificateValid"));
+				//System.out.println("ClientCertificateValid: " + connector.processInput("ClientCertificateValid"));
 
 				CipherSuite selectedCipherSuite = connector.state.getTlsContext().getSelectedCipherSuite();
 				if(selectedCipherSuite == null) {
@@ -731,12 +744,12 @@ public class TLSAttackerConnector {
 					System.out.println("RSAClientKeyExchange: " + connector.processInput("RSAClientKeyExchange"));
 				}
 
-				System.out.println("ClientCertificateVerify: " + connector.processInput("ClientCertificateVerify"));
+				//System.out.println("ClientCertificateVerify: " + connector.processInput("ClientCertificateVerify"));
 
 				System.out.println("ChangeCipherSpec: " + connector.processInput("ChangeCipherSpec"));
 				System.out.println("Finished: " + connector.processInput("Finished"));
 
-				System.out.println("ClientHello: " + connector.processInput("ClientHelloRSAReset"));
+				//System.out.println("ClientHello: " + connector.processInput("ClientHelloRSAReset"));
 
 				System.out.println("ApplicationData: " + connector.processInput("ApplicationData"));
 				System.out.println("ApplicationDataEmpty: " + connector.processInput("ApplicationDataEmpty"));
